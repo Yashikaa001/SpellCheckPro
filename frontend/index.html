@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SpellCheck Pro</title>
+  <meta name="description" content="Spell checker powered by a C++ hash table and trie.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%238b5cf6'/%3E%3Cstop offset='1' stop-color='%233b82f6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M9 17l5 5 9-11' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <!-- Fonts are optional: without internet the page falls back to system fonts. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="bg" aria-hidden="true"><i class="o1"></i><i class="o2"></i><i class="o3"></i></div>
+
+  <div class="app">
+    <!-- ================= sidebar ================= -->
+    <aside class="side">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+        </span>
+        <div><b>SpellCheck Pro</b><small>C++ backend · Hash + Trie</small></div>
+      </div>
+
+      <nav id="nav" aria-label="Main">
+        <a href="#/dashboard" data-route="dashboard"><i data-icon="grid"></i><span>Dashboard</span></a>
+        <a href="#/checker"   data-route="checker"><i data-icon="check"></i><span>Spell checker</span></a>
+        <a href="#/hash"      data-route="hash"><i data-icon="hash"></i><span>Hash table</span></a>
+        <a href="#/trie"      data-route="trie"><i data-icon="trie"></i><span>Trie</span></a>
+        <a href="#/edit"      data-route="edit"><i data-icon="swap"></i><span>Edit distance</span></a>
+        <a href="#/dictionary" data-route="dictionary"><i data-icon="book"></i><span>Dictionary</span></a>
+        <a href="#/history"   data-route="history"><i data-icon="clock"></i><span>History</span></a>
+      </nav>
+
+      <div class="side-foot">
+        <div id="conn" class="conn"><span class="dot"></span><span id="conn-text">Connecting…</span></div>
+        <p>Every number on these pages is measured by the C++ server, not simulated.</p>
+      </div>
+    </aside>
+
+    <!-- ================= main ================= -->
+    <main>
+      <header class="top">
+        <div>
+          <h1 id="page-title">Dashboard</h1>
+          <p id="page-sub"></p>
+        </div>
+      </header>
+
+      <!-- ============ Dashboard ============ -->
+      <section id="page-dashboard" class="page" hidden>
+        <div class="grid kpis" id="kpis"></div>
+
+        <div class="grid two">
+          <article class="glass">
+            <div class="card-h"><h3>Lookup speed per check</h3><span class="hint">nanoseconds per word</span></div>
+            <div class="card-b"><div id="ch-speed" class="chart"></div></div>
+          </article>
+          <article class="glass">
+            <div class="card-h"><h3>Spelling accuracy per check</h3><span class="hint">% of words spelled correctly</span></div>
+            <div class="card-b"><div id="ch-acc" class="chart"></div></div>
+          </article>
+        </div>
+
+        <div class="grid three">
+          <article class="glass">
+            <div class="card-h"><h3>Kinds of mistakes</h3></div>
+            <div class="card-b"><div id="ch-types" class="chart"></div></div>
+          </article>
+          <article class="glass">
+            <div class="card-h"><h3>Most common misspellings</h3></div>
+            <div class="card-b" id="top-missed"></div>
+          </article>
+          <article class="glass">
+            <div class="card-h"><h3>Dictionary word lengths</h3><span class="hint">number of words</span></div>
+            <div class="card-b"><div id="ch-lengths" class="chart"></div></div>
+          </article>
+          <article class="glass">
+            <div class="card-h"><h3>Data structures</h3></div>
+            <div class="card-b" id="ds-snapshot"></div>
+          </article>
+        </div>
+
+        <div class="grid two">
+          <article class="glass">
+            <div class="card-h">
+              <h3>Speed test: hash table vs trie vs list scan</h3>
+              <div class="row">
+                <select id="bench-n" class="input" style="width:auto" aria-label="Number of lookups">
+                  <option value="1000">1,000 words</option>
+                  <option value="3000" selected>3,000 words</option>
+                  <option value="10000">10,000 words</option>
+                </select>
+                <button class="btn primary sm" id="bench-run"><i data-icon="play"></i>Run test</button>
+              </div>
+            </div>
+            <div class="card-b" id="bench-out">
+              <div class="empty"><b>No test run yet</b>Looks up real and made-up words in all three structures and times them.</div>
+            </div>
+          </article>
+          <article class="glass">
+            <div class="card-h">
+              <h3>Suggestion accuracy test</h3>
+              <button class="btn primary sm" id="self-run"><i data-icon="play"></i>Run test</button>
+            </div>
+            <div class="card-b" id="self-out">
+              <div class="empty"><b>No test run yet</b>Feeds 112 common misspellings through the suggester and checks where the right word ranks.</div>
+            </div>
+          </article>
+        </div>
+
+        <div class="row end"><button class="btn danger sm" id="reset-stats"><i data-icon="refresh"></i>Reset session statistics</button></div>
+      </section>
+
+      <!-- ============ Spell checker ============ -->
+      <section id="page-checker" class="page" hidden>
+        <div class="grid split">
+          <div class="stack">
+            <article class="glass">
+              <div class="toolbar">
+                <button class="btn primary" id="btn-check"><i data-icon="check"></i>Check spelling</button>
+                <button class="btn" id="btn-fixall" disabled><i data-icon="bolt"></i>Fix all</button>
+                <button class="btn" id="btn-sample">Sample text</button>
+                <span class="sp"></span>
+                <button class="btn" id="btn-clear"><i data-icon="trash"></i>Clear</button>
+              </div>
+              <div class="editor" id="editor">
+                <div class="backdrop" id="backdrop" aria-hidden="true"></div>
+                <textarea id="text" spellcheck="false" autocomplete="off" autocapitalize="off"
+                  aria-label="Text to check" placeholder="Type or paste text here, then press Check spelling…"></textarea>
+              </div>
+              <div class="statusbar" id="statusbar"><span>Ready. Click an underlined word to see suggestions.</span></div>
+            </article>
+
+            <article class="glass">
+              <div class="card-h">
+                <h3>Corrected text</h3>
+                <div class="row">
+                  <button class="btn sm" id="btn-apply" disabled>Apply to editor</button>
+                  <button class="btn primary sm" id="btn-copy"><i data-icon="copy"></i>Copy corrected text</button>
+                </div>
+              </div>
+              <div class="card-b">
+                <div id="corrected" class="corrected"><span class="faint">Corrections appear here. The first suggestion is used for every misspelled word.</span></div>
+              </div>
+            </article>
+          </div>
+
+          <aside class="stack">
+            <article class="glass">
+              <div class="card-h"><h3>Options</h3></div>
+              <div class="card-b" style="display:grid;gap:14px">
+                <label class="switch"><input type="checkbox" id="opt-live" checked><span class="tr"></span>Check while typing</label>
+                <label class="switch"><input type="checkbox" id="opt-caps" checked><span class="tr"></span>Skip ALL-CAPS words</label>
+                <div class="form-row">
+                  <div class="field"><label for="opt-max">Suggestions per word</label>
+                    <select id="opt-max" class="input"><option>3</option><option selected>5</option><option>8</option></select></div>
+                  <div class="field"><label for="opt-dist">Max edits</label>
+                    <select id="opt-dist" class="input"><option value="1">1 edit</option><option value="2" selected>2 edits</option><option value="3">3 edits</option></select></div>
+                </div>
+                <div class="row" id="ignored-row" hidden>
+                  <span class="lbl">Ignored:</span><span id="ignored-list" class="row" style="gap:6px"></span>
+                  <button class="btn sm" id="btn-unignore">Clear</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="glass">
+              <div class="card-h"><h3>Misspelled words</h3><span class="chip" id="issue-count">0</span></div>
+              <div class="card-b"><div id="issues" class="issues"><div class="empty"><b>Nothing to show yet</b>Check some text to see mistakes here.</div></div></div>
+            </article>
+
+            <article class="glass">
+              <div class="card-h"><h3>How it was found</h3></div>
+              <div class="card-b" id="explain"><div class="empty"><b>Pick a misspelled word</b>See which structures answered, and how much work the trie skipped.</div></div>
+            </article>
+          </aside>
+        </div>
+        <div id="pop" class="pop" hidden role="dialog" aria-label="Suggestions"></div>
+      </section>
+
+      <!-- ============ Hash table ============ -->
+      <section id="page-hash" class="page" hidden>
+        <div class="grid kpis" id="hash-kpis"></div>
+
+        <article class="glass">
+          <div class="card-h">
+            <h3>Bucket map</h3>
+            <div class="row">
+              <select id="hash-fn" class="input" style="width:auto" aria-label="Hash function">
+                <option value="djb2">djb2 (good)</option>
+                <option value="fnv1a">FNV-1a (good)</option>
+                <option value="sdbm">sdbm (good)</option>
+                <option value="sum">letter sum (poor, on purpose)</option>
+              </select>
+              <select id="hash-size" class="input" style="width:auto" aria-label="Number of buckets">
+                <option value="101">101 buckets</option>
+                <option value="1009">1,009 buckets</option>
+                <option value="5003">5,003 buckets</option>
+                <option value="20011">20,011 buckets</option>
+                <option value="50021">50,021 buckets</option>
+                <option value="100003">100,003 buckets</option>
+              </select>
+              <button class="btn primary sm" id="hash-rebuild"><i data-icon="refresh"></i>Rebuild table</button>
+            </div>
+          </div>
+          <div class="card-b">
+            <p class="note" style="margin-bottom:12px">Each square is one bucket. Brighter squares hold more words. Words that share a bucket have <b>collided</b> and sit in a chain. Pick the poor hash function or fewer buckets and watch the collisions pile up. Click a square to open that bucket.</p>
+            <div class="heat-wrap"><canvas id="heat" aria-label="Hash table buckets"></canvas></div>
+            <div class="swatches" id="heat-legend"></div>
+          </div>
+        </article>
+
+        <div class="grid two">
+          <article class="glass">
+            <div class="card-h"><h3>Look up a word</h3></div>
+            <div class="card-b" style="display:grid;gap:14px">
+              <form id="hash-form" class="inline-form">
+                <input class="input" id="hash-word" placeholder="Type a word, e.g. hello" autocomplete="off" aria-label="Word to look up">
+                <button class="btn primary" type="submit"><i data-icon="search"></i>Look up</button>
+              </form>
+              <div id="hash-out"><div class="empty"><b>Try a word</b>See how it is turned into a number, a bucket, and a chain.</div></div>
+            </div>
+          </article>
+          <div class="stack">
+            <article class="glass">
+              <div class="card-h"><h3>Chain lengths</h3><span class="hint">buckets by number of words</span></div>
+              <div class="card-b"><div id="ch-hist" class="chart"></div></div>
+            </article>
+            <article class="glass">
+              <div class="card-h"><h3>Most crowded buckets</h3></div>
+              <div class="card-b"><div id="hash-worst" class="worst"></div></div>
+            </article>
+          </div>
+        </div>
+
+        <article class="glass" id="bucket-card" hidden>
+          <div class="card-h"><h3 id="bucket-title">Bucket</h3><button class="btn sm" id="bucket-close">Close</button></div>
+          <div class="card-b" id="bucket-body"></div>
+        </article>
+      </section>
+
+      <!-- ============ Trie ============ -->
+      <section id="page-trie" class="page" hidden>
+        <div class="grid kpis" id="trie-kpis"></div>
+
+        <article class="glass">
+          <div class="card-h">
+            <h3>Trie explorer</h3>
+            <div class="row">
+              <div class="seg" id="tree-depth" role="group" aria-label="Levels shown">
+                <button data-v="1" aria-pressed="false">1 level</button>
+                <button data-v="2" aria-pressed="true">2 levels</button>
+                <button data-v="3" aria-pressed="false">3 levels</button>
+              </div>
+              <select id="tree-width" class="input" style="width:auto" aria-label="Branches per node">
+                <option value="5">5 branches</option><option value="7" selected>7 branches</option>
+                <option value="10">10 branches</option><option value="27">All branches</option>
+              </select>
+            </div>
+          </div>
+          <div class="card-b" style="display:grid;gap:14px">
+            <div class="row" style="justify-content:space-between">
+              <div class="crumbs" id="crumbs"></div>
+              <form id="tree-form" class="inline-form" style="flex:0 1 320px">
+                <input class="input" id="tree-prefix" placeholder="Jump to a prefix, e.g. spel" autocomplete="off" aria-label="Prefix">
+                <button class="btn" type="submit">Go</button>
+              </form>
+            </div>
+            <p class="note">Every circle is one letter. Following circles from the left spells a prefix. A <b style="color:var(--mint)">green ring</b> marks the end of a real word, and <b>+n</b> means more branches below. Click any circle to make it the new root.</p>
+            <div class="tree-scroll" id="tree"></div>
+          </div>
+        </article>
+
+        <div class="grid two">
+          <article class="glass">
+            <div class="card-h"><h3>Spell a word through the trie</h3></div>
+            <div class="card-b" style="display:grid;gap:14px">
+              <form id="path-form" class="inline-form">
+                <input class="input" id="path-word" placeholder="e.g. spelling or speling" autocomplete="off" aria-label="Word to trace">
+                <button class="btn primary" type="submit">Trace</button>
+              </form>
+              <div id="path-out"><div class="empty"><b>Trace a word</b>See each node visited, and where a misspelling falls off the tree.</div></div>
+            </div>
+          </article>
+          <article class="glass">
+            <div class="card-h"><h3>Autocomplete</h3><span class="hint" id="ac-meta"></span></div>
+            <div class="card-b" style="display:grid;gap:14px">
+              <input class="input" id="ac-prefix" placeholder="Type the start of a word" autocomplete="off" aria-label="Prefix">
+              <div id="ac-out" class="ac-list"><div class="empty"><b>Start typing</b>The most common words with that start appear here.</div></div>
+            </div>
+          </article>
+        </div>
+
+        <div class="grid two">
+          <article class="glass">
+            <div class="card-h"><h3>Fuzzy search: how much work is skipped?</h3></div>
+            <div class="card-b" style="display:grid;gap:14px">
+              <form id="fuzzy-form" class="inline-form">
+                <input class="input" id="fuzzy-word" placeholder="A misspelled word, e.g. recieve" autocomplete="off" aria-label="Misspelled word">
+                <select id="fuzzy-dist" class="input" style="flex:0 0 120px" aria-label="Max edits"><option value="1">1 edit</option><option value="2" selected>2 edits</option><option value="3">3 edits</option></select>
+                <button class="btn primary" type="submit">Search</button>
+              </form>
+              <div id="fuzzy-out"><div class="empty"><b>Search for near matches</b>The trie drops whole branches that cannot be close enough.</div></div>
+            </div>
+          </article>
+          <article class="glass">
+            <div class="card-h"><h3>Nodes per depth</h3><span class="hint">how wide the tree is at each letter position</span></div>
+            <div class="card-b"><div id="ch-depth" class="chart"></div></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ Edit distance ============ -->
+      <section id="page-edit" class="page" hidden>
+        <article class="glass">
+          <div class="card-h"><h3>Compare two words</h3></div>
+          <div class="card-b" style="display:grid;gap:14px">
+            <div class="form-row">
+              <div class="field"><label for="ed-a">Misspelled word</label><input class="input" id="ed-a" value="speling" autocomplete="off"></div>
+              <div class="field"><label for="ed-b">Dictionary word</label><input class="input" id="ed-b" value="spelling" autocomplete="off"></div>
+            </div>
+            <div class="row" id="ed-presets"></div>
+          </div>
+        </article>
+        <div class="grid two">
+          <article class="glass">
+            <div class="card-h"><h3>Result</h3></div>
+            <div class="card-b" id="ed-result"></div>
+          </article>
+          <article class="glass">
+            <div class="card-h"><h3>The table behind it</h3><span class="hint">cell = edits needed for the first i and j letters</span></div>
+            <div class="card-b"><div class="matrix-scroll" id="ed-matrix"></div></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ Dictionary ============ -->
+      <section id="page-dictionary" class="page" hidden>
+        <div class="grid split">
+          <article class="glass">
+            <div class="card-h"><h3>Dictionary explorer</h3><span class="chip violet" id="dict-total">…</span></div>
+            <div class="card-b" style="display:grid;gap:14px">
+              <div class="form-row" style="grid-template-columns: 2fr 1fr 1fr">
+                <div class="field"><label for="d-q">Search</label><input class="input" id="d-q" placeholder="Type letters…" autocomplete="off"></div>
+                <div class="field"><label for="d-mode">Match</label><select id="d-mode" class="input"><option value="prefix">Starts with</option><option value="contains">Contains</option><option value="suffix">Ends with</option></select></div>
+                <div class="field"><label for="d-sort">Sort by</label><select id="d-sort" class="input"><option value="alpha">A to Z</option><option value="alpha-desc">Z to A</option><option value="freq-desc">Most common</option><option value="freq-asc">Least common</option><option value="length-desc">Longest</option><option value="length-asc">Shortest</option></select></div>
+              </div>
+              <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr 1fr">
+                <div class="field"><label for="d-min">Min length</label><input class="input" id="d-min" type="number" min="0" max="30" placeholder="any"></div>
+                <div class="field"><label for="d-max">Max length</label><input class="input" id="d-max" type="number" min="0" max="30" placeholder="any"></div>
+                <div class="field"><label for="d-size">Rows</label><select id="d-size" class="input"><option>25</option><option selected>50</option><option>100</option></select></div>
+                <div class="field"><label>&nbsp;</label><label class="switch" style="padding-top:8px"><input type="checkbox" id="d-custom"><span class="tr"></span>My words</label></div>
+              </div>
+              <div class="letters" id="d-letters" role="group" aria-label="First letter"></div>
+              <div class="tbl-wrap" style="max-height:560px"><table class="tbl" id="d-table"></table></div>
+              <div class="pager" id="d-pager"></div>
+            </div>
+          </article>
+
+          <div class="stack">
+            <article class="glass">
+              <div class="card-h"><h3>Add a word</h3></div>
+              <div class="card-b" style="display:grid;gap:12px">
+                <form id="add-form" class="inline-form">
+                  <input class="input" id="add-word" placeholder="e.g. blockchain" autocomplete="off" aria-label="New word">
+                  <button class="btn primary" type="submit"><i data-icon="plus"></i>Add word</button>
+                </form>
+                <p class="note">New words go into the hash table and the trie at once, are saved to <span class="mono">data/custom_words.txt</span>, and are accepted by the spell checker straight away.</p>
+              </div>
+            </article>
+            <article class="glass">
+              <div class="card-h"><h3>Dictionary at a glance</h3></div>
+              <div class="card-b" id="dict-glance"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ History ============ -->
+      <section id="page-history" class="page" hidden>
+        <article class="glass">
+          <div class="card-h">
+            <h3>Correction history</h3>
+            <div class="row">
+              <div class="seg" id="hist-filter" role="group" aria-label="Filter">
+                <button data-v="" aria-pressed="true">All</button>
+                <button data-v="correction" aria-pressed="false">Corrections</button>
+                <button data-v="check" aria-pressed="false">Checks</button>
+              </div>
+              <button class="btn danger sm" id="hist-clear"><i data-icon="trash"></i>Clear history</button>
+            </div>
+          </div>
+          <div class="card-b"><div id="hist-list" class="hist"></div></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="js/core.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/checker.js"></script>
+  <script src="js/hash.js"></script>
+  <script src="js/trie.js"></script>
+  <script src="js/edit.js"></script>
+  <script src="js/dictionary.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
